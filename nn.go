@@ -137,6 +137,7 @@ func attention(q, k, v *mat.Dense, mask *mat.Dense) *mat.Dense {
 	return &out
 }
 
+// Multi-Head attention
 func mha(x *mat.Dense, attn Attention, nHead int) *mat.Dense {
 	rows, _ := x.Dims()
 
@@ -169,4 +170,34 @@ func mha(x *mat.Dense, attn Attention, nHead int) *mat.Dense {
 	out := linear(concatOutput, attn.CProjW, attn.CProjB)
 
 	return out
+}
+
+// getEmbedding extracts rows from embedding matrix based on indices
+func getEmbedding(embMatrix *mat.Dense, indices []int) *mat.Dense {
+	_, embDim := embMatrix.Dims()
+	seqLen := len(indices)
+
+	result := mat.NewDense(seqLen, embDim, nil)
+
+	for i, idx := range indices {
+		row := embMatrix.RawRowView(idx)
+		result.SetRow(i, row)
+	}
+
+	return result
+}
+
+// createCausalMask creates a causal (lower triangular) mask
+func createCausalMask(seqLen int) *mat.Dense {
+	mask := mat.NewDense(seqLen, seqLen, nil)
+
+	for i := range seqLen {
+		for j := range seqLen {
+			if j > i {
+				mask.Set(i, j, math.Inf(-1)) // Set to negative infinity for masked positions
+			}
+		}
+	}
+
+	return mask
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -104,21 +103,6 @@ func concatenateHeads(heads []*mat.Dense) *mat.Dense {
 	return mat.NewDense(rows, totalDim, resultData)
 }
 
-// createCausalMask creates a causal (lower triangular) mask
-func createCausalMask(seqLen int) *mat.Dense {
-	mask := mat.NewDense(seqLen, seqLen, nil)
-
-	for i := range seqLen {
-		for j := range seqLen {
-			if j > i {
-				mask.Set(i, j, math.Inf(-1)) // Set to negative infinity for masked positions
-			}
-		}
-	}
-
-	return mask
-}
-
 func transformerBlock(x *mat.Dense, block Block, nHead int) *mat.Dense {
 
 	// First residual connection: x = x + mha(layer_norm(x, ln_1))
@@ -138,21 +122,6 @@ func transformerBlock(x *mat.Dense, block Block, nHead int) *mat.Dense {
 	x2.Add(&x1, ffnOut)
 
 	return &x2
-}
-
-// getEmbedding extracts rows from embedding matrix based on indices
-func getEmbedding(embMatrix *mat.Dense, indices []int) *mat.Dense {
-	_, embDim := embMatrix.Dims()
-	seqLen := len(indices)
-
-	result := mat.NewDense(seqLen, embDim, nil)
-
-	for i, idx := range indices {
-		row := embMatrix.RawRowView(idx)
-		result.SetRow(i, row)
-	}
-
-	return result
 }
 
 func (params *GPT2Model) Forward(inputs []int, nHead int) *mat.Dense {
@@ -227,21 +196,6 @@ func (params *GPT2Model) Generate(inputs []int, nHead, nTokensToGenerate, topk i
 		inputs = append(inputs, nextID)
 	}
 	return inputs[len(inputs)-nTokensToGenerate:]
-}
-
-func (params *GPT2Model) LoadModel() map[string]int {
-	// THIS IS A PLACEHOLDER
-	// In a real implementation, you would load pre-converted weights from a file (e.g., JSON, binary)
-	// and populate the GPT2Model struct with `mat.Dense` matrices.
-	log.Println("Loading placeholder model. Replace with actual model loading logic.")
-
-	hparams := map[string]int{
-		"n_head": 12,
-		"n_ctx":  1024,
-	}
-
-	// Return empty model
-	return hparams
 }
 
 func LoadGPT2ModelFromBinary(filePath string) (*GPT2Model, error) {

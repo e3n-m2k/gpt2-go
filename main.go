@@ -10,6 +10,9 @@ func main() {
 
 	tokenizerPath := flag.String("tokenizer", "./tokenizer.json", "Path to tokenizer.json")
 	modelPath := flag.String("model", "./model.bin", "Path to model.bin")
+	prompt := flag.String("prompt", "In physics, string theory is a theoretical framework in which the point-like particles of particle physics are replaced by one-dimensional objects called strings.", "Prompt for text generation")
+	topK := flag.Int("topK", 5, "Top-K sampling parameter")
+	numTokens := flag.Int("nTokens", 20, "Number of tokens to generate")
 
 	flag.Parse()
 
@@ -34,17 +37,14 @@ func main() {
 		"n_head": 12,
 		"n_ctx":  1024,
 	}
-	nTokensToGenerate := 20
-	topk := 5
-	prompt := "In physics, string theory is a theoretical framework in which the point-like particles of particle physics are replaced by one-dimensional objects called strings."
-
-	inputIDs := encoder.Encode(prompt)
+	nTokensToGenerate := *numTokens
+	inputIDs := encoder.Encode(*prompt)
 	if len(inputIDs)+nTokensToGenerate > hparams["n_ctx"] {
 		log.Fatalf("Prompt is too long!")
 	}
 
 	// The generation will currently produce random garbage because the model is not loaded.
-	outputIDs := model.Generate(inputIDs, hparams["n_head"], nTokensToGenerate, topk)
+	outputIDs := model.Generate(inputIDs, hparams["n_head"], nTokensToGenerate, *topK)
 	outputText := encoder.Decode(outputIDs)
 
 	fmt.Println("\n--- Generated Text ---")
