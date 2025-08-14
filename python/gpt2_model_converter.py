@@ -43,19 +43,11 @@ with open(output_path, "wb") as f:
         w = model[f"h.{i}.ln_2.bias"].reshape(-1).numpy().tolist()
         f.write(struct.pack("f" * hidden_dim, *w))
 
-        w = model[f"h.{i}.attn.c_attn.weight"].numpy()
-        b = model[f"h.{i}.attn.c_attn.bias"].numpy()
-        qw, kw, vw = np.split(w, 3, axis=-1)
-        qb, kb, vb = np.split(b, 3, axis=-1)
+        w = model[f"h.{i}.attn.c_attn.weight"].reshape(-1).numpy().tolist()
+        f.write(struct.pack("f" * (hidden_dim * hidden_dim * 3), *w))
 
-        f.write(struct.pack("f" * (hidden_dim * hidden_dim), *qw.reshape(-1).tolist()))
-        f.write(struct.pack("f" * hidden_dim, *qb.reshape(-1).tolist()))
-
-        f.write(struct.pack("f" * (hidden_dim * hidden_dim), *kw.reshape(-1).tolist()))
-        f.write(struct.pack("f" * hidden_dim, *kb.reshape(-1).tolist()))
-
-        f.write(struct.pack("f" * (hidden_dim * hidden_dim), *vw.reshape(-1).tolist()))
-        f.write(struct.pack("f" * hidden_dim, *vb.reshape(-1).tolist()))
+        w = model[f"h.{i}.attn.c_attn.bias"].reshape(-1).numpy().tolist()
+        f.write(struct.pack("f" * hidden_dim * 3, *w))
 
         w = model[f"h.{i}.attn.c_proj.weight"].reshape(-1).numpy().tolist()
         f.write(struct.pack("f" * (hidden_dim * hidden_dim), *w))

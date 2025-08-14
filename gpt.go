@@ -319,59 +319,18 @@ func LoadGPT2ModelFromBinary(filePath string) (*GPT2Model, error) {
 		}
 		ln2B := mat.NewDense(1, hiddenDim, ln2BData)
 
-		// Attention Q, K, V weights and biases (split from c_attn)
-		qwData, err := readFloats(hiddenDim * hiddenDim)
+		// Attention Q, K, V weights and biases
+		qkvWData, err := readFloats(hiddenDim * hiddenDim * 3)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read Q weight for block %d: %v", i, err)
+			return nil, fmt.Errorf("failed to read QKV weight for block %d: %v", i, err)
 		}
-		// qWeight := mat.NewDense(hiddenDim, hiddenDim, qwData)
+		cAttnW := mat.NewDense(hiddenDim, hiddenDim*3, qkvWData)
 
-		qbData, err := readFloats(hiddenDim)
+		qkvBData, err := readFloats(hiddenDim * 3)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read Q bias for block %d: %v", i, err)
+			return nil, fmt.Errorf("failed to read QKV bias for block %d: %v", i, err)
 		}
-		// qBias := mat.NewDense(1, hiddenDim, qbData)
-
-		kwData, err := readFloats(hiddenDim * hiddenDim)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read K weight for block %d: %v", i, err)
-		}
-		// kWeight := mat.NewDense(hiddenDim, hiddenDim, kwData)
-
-		kbData, err := readFloats(hiddenDim)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read K bias for block %d: %v", i, err)
-		}
-		// kBias := mat.NewDense(1, hiddenDim, kbData)
-
-		vwData, err := readFloats(hiddenDim * hiddenDim)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read V weight for block %d: %v", i, err)
-		}
-		// vWeight := mat.NewDense(hiddenDim, hiddenDim, vwData)
-
-		vbData, err := readFloats(hiddenDim)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read V bias for block %d: %v", i, err)
-		}
-		// vBias := mat.NewDense(1, hiddenDim, vbData)
-
-		// Concatenate Q, K, V for c_attn format
-		cAttnWData := make([]float64, hiddenDim*hiddenDim*3)
-		cAttnBData := make([]float64, hiddenDim*3)
-
-		// Copy Q, K, V weights side by side
-		copy(cAttnWData[0:hiddenDim*hiddenDim], qwData)
-		copy(cAttnWData[hiddenDim*hiddenDim:2*hiddenDim*hiddenDim], kwData)
-		copy(cAttnWData[2*hiddenDim*hiddenDim:3*hiddenDim*hiddenDim], vwData)
-
-		// Copy Q, K, V biases side by side
-		copy(cAttnBData[0:hiddenDim], qbData)
-		copy(cAttnBData[hiddenDim:2*hiddenDim], kbData)
-		copy(cAttnBData[2*hiddenDim:3*hiddenDim], vbData)
-
-		cAttnW := mat.NewDense(hiddenDim, hiddenDim*3, cAttnWData)
-		cAttnB := mat.NewDense(1, hiddenDim*3, cAttnBData)
+		cAttnB := mat.NewDense(1, hiddenDim*3, qkvBData)
 
 		// Attention output projection
 		cProjWData, err := readFloats(hiddenDim * hiddenDim)
