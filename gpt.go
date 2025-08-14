@@ -62,6 +62,56 @@ func splitQKV(qkv *mat.Dense, nHead int) (*mat.Dense, *mat.Dense, *mat.Dense) {
 	return q, k, v
 }
 
+// splitIntoHeads reshapes [seqLen, dModel] to [nHead, seqLen, headDim] conceptually
+// Returns a slice of matrices, one for each head
+func splitIntoHeads(matrix *mat.Dense, nHead int) []*mat.Dense {
+	rows, cols := matrix.Dims()
+	headDim := cols / nHead
+
+	heads := make([]*mat.Dense, nHead)
+
+	for h := 0; h < nHead; h++ {
+		headData := make([]float64, rows*headDim)
+
+		for r := 0; r < rows; r++ {
+			for c := 0; c < headDim; c++ {
+				// Extract columns for this head
+				srcCol := h*headDim + c
+				headData[r*headDim+c] = matrix.At(r, srcCol)
+			}
+		}
+
+		heads[h] = mat.NewDense(rows, headDim, headData)
+	}
+
+	return heads
+}
+
+// concatenateHeads combines multiple head outputs back into a single matrix
+func concatenateHeads(heads []*mat.Dense) *mat.Dense {
+	if len(heads) == 0 {
+		return nil
+	}
+
+	rows, headDim := heads[0].Dims()
+	nHead := len(heads)
+	totalDim := nHead * headDim
+
+	resultData := make([]float64, rows*totalDim)
+
+	for h := 0; h < nHead; h++ {
+		headData := heads[h].RawMatrix().Data
+		for r := 0; r < rows; r++ {
+			for c := 0; c < headDim; c++ {
+				destCol := h*headDim + c
+				resultData[r*totalDim+destCol] = headData[r*headDim+c]
+			}
+		}
+	}
+
+	return mat.NewDense(rows, totalDim, resultData)
+}
+
 // createCausalMask creates a causal (lower triangular) mask
 func createCausalMask(seqLen int) *mat.Dense {
 	mask := mat.NewDense(seqLen, seqLen, nil)
@@ -78,7 +128,7 @@ func createCausalMask(seqLen int) *mat.Dense {
 }
 
 func mha(x *mat.Dense, attn Attention, nHead int) *mat.Dense {
-	rows, cols := x.Dims()
+	rows, _ := x.Dims()
 
 	// Linear projection to get Q, K, V
 	qkv := linear(x, attn.CAttnW, attn.CAttnB)
@@ -86,22 +136,27 @@ func mha(x *mat.Dense, attn Attention, nHead int) *mat.Dense {
 	// Split into Q, K, V
 	q, k, v := splitQKV(qkv, nHead)
 
+	// Split Q, K, V into multiple heads
+	qHeads := splitIntoHeads(q, nHead)
+	kHeads := splitIntoHeads(k, nHead)
+	vHeads := splitIntoHeads(v, nHead)
+
 	// Create causal mask
 	mask := createCausalMask(rows)
 
-	// For multi-head attention, we'd normally reshape and process each head
-	// This is a simplified version that processes all heads together
-	headDim := cols / nHead
+	// Process each head separately
+	headOutputs := make([]*mat.Dense, nHead)
 
-	// Scale Q by sqrt(head_dim) instead of full dimension
-	scale := math.Sqrt(float64(headDim))
-	q.Scale(1/scale, q)
+	for h := range nHead {
+		// Apply attention for this head
+		headOutputs[h] = attention(qHeads[h], kHeads[h], vHeads[h], mask)
+	}
 
-	// Apply attention
-	attnOut := attention(q, k, v, mask)
+	// Concatenate all head outputs
+	concatOutput := concatenateHeads(headOutputs)
 
 	// Output projection
-	out := linear(attnOut, attn.CProjW, attn.CProjB)
+	out := linear(concatOutput, attn.CProjW, attn.CProjB)
 
 	return out
 }
