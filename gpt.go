@@ -47,8 +47,8 @@ func splitQKV(qkv *mat.Dense, nHead int) (*mat.Dense, *mat.Dense, *mat.Dense) {
 
 	qkvData := qkv.RawMatrix().Data
 
-	for i := 0; i < rows; i++ {
-		for j := 0; j < dModel; j++ {
+	for i := range rows {
+		for j := range dModel {
 			qData[i*dModel+j] = qkvData[i*cols+j]          // Q
 			kData[i*dModel+j] = qkvData[i*cols+dModel+j]   // K
 			vData[i*dModel+j] = qkvData[i*cols+2*dModel+j] // V
@@ -70,11 +70,11 @@ func splitIntoHeads(matrix *mat.Dense, nHead int) []*mat.Dense {
 
 	heads := make([]*mat.Dense, nHead)
 
-	for h := 0; h < nHead; h++ {
+	for h := range nHead {
 		headData := make([]float64, rows*headDim)
 
-		for r := 0; r < rows; r++ {
-			for c := 0; c < headDim; c++ {
+		for r := range rows {
+			for c := range headDim {
 				// Extract columns for this head
 				srcCol := h*headDim + c
 				headData[r*headDim+c] = matrix.At(r, srcCol)
@@ -99,10 +99,10 @@ func concatenateHeads(heads []*mat.Dense) *mat.Dense {
 
 	resultData := make([]float64, rows*totalDim)
 
-	for h := 0; h < nHead; h++ {
+	for h := range nHead {
 		headData := heads[h].RawMatrix().Data
-		for r := 0; r < rows; r++ {
-			for c := 0; c < headDim; c++ {
+		for r := range rows {
+			for c := range headDim {
 				destCol := h*headDim + c
 				resultData[r*totalDim+destCol] = headData[r*headDim+c]
 			}
@@ -116,8 +116,8 @@ func concatenateHeads(heads []*mat.Dense) *mat.Dense {
 func createCausalMask(seqLen int) *mat.Dense {
 	mask := mat.NewDense(seqLen, seqLen, nil)
 
-	for i := 0; i < seqLen; i++ {
-		for j := 0; j < seqLen; j++ {
+	for i := range seqLen {
+		for j := range seqLen {
 			if j > i {
 				mask.Set(i, j, math.Inf(-1)) // Set to negative infinity for masked positions
 			}
@@ -208,7 +208,7 @@ func (params *GPT2Model) Forward(inputs []int, nHead int) *mat.Dense {
 
 	// Get position embeddings: wpe[range(len(inputs))]
 	posIndices := make([]int, seqLen)
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		posIndices[i] = i
 	}
 	posEmb := getEmbedding(params.WPE, posIndices)
@@ -240,7 +240,7 @@ func (params *GPT2Model) Forward(inputs []int, nHead int) *mat.Dense {
 }
 
 func (params *GPT2Model) Generate(inputs []int, nHead, nTokensToGenerate, topk int) []int {
-	for i := 0; i < nTokensToGenerate; i++ {
+	for i := range nTokensToGenerate {
 		fmt.Printf("Generating token %d/%d\n", i+1, nTokensToGenerate)
 		logits := params.Forward(inputs, nHead)
 
@@ -311,7 +311,7 @@ func LoadGPT2ModelFromBinary(filePath string) (*GPT2Model, error) {
 		}
 
 		floats := make([]float64, count)
-		for i := 0; i < count; i++ {
+		for i := range count {
 			bits := binary.LittleEndian.Uint32(bytes[i*4 : (i+1)*4])
 			floats[i] = float64(math.Float32frombits(bits))
 		}
@@ -347,7 +347,7 @@ func LoadGPT2ModelFromBinary(filePath string) (*GPT2Model, error) {
 
 	// Load transformer blocks
 	blocks := make([]Block, nHead)
-	for i := 0; i < nHead; i++ {
+	for i := range nHead {
 		// Layer norm 1
 		ln1GData, err := readFloats(hiddenDim)
 		if err != nil {
@@ -463,7 +463,7 @@ func CreateDummyGPT2Model(vocabSize, dModel, nLayer, nHead int) (GPT2Model, map[
 	wpe := mat.NewDense(1024, dModel, nil) // max position embeddings
 
 	blocks := make([]Block, nLayer)
-	for i := 0; i < nLayer; i++ {
+	for i := range nLayer {
 		blocks[i] = Block{
 			MLP: MLP{
 				CFcW:   mat.NewDense(dModel, dModel*4, nil),

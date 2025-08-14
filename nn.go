@@ -20,7 +20,7 @@ func gelu(x *mat.Dense) *mat.Dense {
 func softmax(x *mat.Dense) *mat.Dense {
 	rows, cols := x.Dims()
 	out := mat.NewDense(rows, cols, nil)
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := x.RawRowView(r)
 		maxVal := mat.Max(mat.NewVecDense(len(row), row))
 		var sumExp float64
@@ -41,7 +41,7 @@ func softmax(x *mat.Dense) *mat.Dense {
 func layerNorm(x, g, b *mat.Dense, eps float64) *mat.Dense {
 	rows, cols := x.Dims()
 	out := mat.NewDense(rows, cols, nil)
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := x.RawRowView(r)
 		mean := mat.Sum(mat.NewVecDense(len(row), row)) / float64(len(row))
 
@@ -79,8 +79,8 @@ func linear(x, w, b *mat.Dense) *mat.Dense {
 	if bRows == 1 && bCols == cols {
 		// Standard case: bias is (1, output_features)
 		biasRow := b.RawRowView(0)
-		for r := 0; r < rows; r++ {
-			for c := 0; c < cols; c++ {
+		for r := range rows {
+			for c := range cols {
 				z.Set(r, c, z.At(r, c)+biasRow[c])
 			}
 		}
@@ -90,8 +90,8 @@ func linear(x, w, b *mat.Dense) *mat.Dense {
 	} else if bRows == 1 && bCols == 1 {
 		// Scalar bias - add to all elements
 		scalar := b.At(0, 0)
-		for r := 0; r < rows; r++ {
-			for c := 0; c < cols; c++ {
+		for r := range rows {
+			for c := range cols {
 				z.Set(r, c, z.At(r, c)+scalar)
 			}
 		}

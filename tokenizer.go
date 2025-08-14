@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -55,7 +56,7 @@ func bytesToUnicode() (map[byte]rune, map[rune]byte) {
 
 	// Add remaining bytes, mapping them to unused Unicode points
 	n := 0
-	for b := 0; b < 256; b++ {
+	for b := range 256 {
 		if !containsInt(bs, b) {
 			bs = append(bs, b)
 			cs = append(cs, 256+n)
@@ -75,12 +76,7 @@ func bytesToUnicode() (map[byte]rune, map[rune]byte) {
 }
 
 func containsInt(slice []int, val int) bool {
-	for _, v := range slice {
-		if v == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, val)
 }
 
 func getPairs(word []string) [][2]string {
