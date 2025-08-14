@@ -6,6 +6,14 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+type MLP struct {
+	CFcW, CFcB, CProjW, CProjB *mat.Dense
+}
+
+type Attention struct {
+	CAttnW, CAttnB, CProjW, CProjB *mat.Dense
+}
+
 // --- Neural Network Functions ---
 
 func gelu(x *mat.Dense) *mat.Dense {
@@ -127,4 +135,38 @@ func attention(q, k, v *mat.Dense, mask *mat.Dense) *mat.Dense {
 	var out mat.Dense
 	out.Mul(smax, v)
 	return &out
+}
+
+func mha(x *mat.Dense, attn Attention, nHead int) *mat.Dense {
+	rows, _ := x.Dims()
+
+	// Linear projection to get Q, K, V
+	qkv := linear(x, attn.CAttnW, attn.CAttnB)
+
+	// Split into Q, K, V
+	q, k, v := splitQKV(qkv, nHead)
+
+	// Split Q, K, V into multiple heads
+	qHeads := splitIntoHeads(q, nHead)
+	kHeads := splitIntoHeads(k, nHead)
+	vHeads := splitIntoHeads(v, nHead)
+
+	// Create causal mask
+	mask := createCausalMask(rows)
+
+	// Process each head separately
+	headOutputs := make([]*mat.Dense, nHead)
+
+	for h := range nHead {
+		// Apply attention for this head
+		headOutputs[h] = attention(qHeads[h], kHeads[h], vHeads[h], mask)
+	}
+
+	// Concatenate all head outputs
+	concatOutput := concatenateHeads(headOutputs)
+
+	// Output projection
+	out := linear(concatOutput, attn.CProjW, attn.CProjB)
+
+	return out
 }

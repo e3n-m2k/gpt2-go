@@ -1,4 +1,4 @@
-module gpt-go
+module gpt2-go
 
 go 1.23.0
 
